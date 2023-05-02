@@ -1,0 +1,9 @@
+requests
+Markdown==3.4.3
+matplotlib==3.7.1
+numpy==1.24.3
+pandas==2.0.1
+pandastable==0.13.1
+scipy==1.10.1
+sounddevice==0.4.6
+soundfile==0.12.1
