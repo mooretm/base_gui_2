@@ -150,9 +150,11 @@ class Audio:
 
 
     def plot_wave(self, sig):
-        plt.plot(self.t, sig)
-        plt.title("Clipping Has Occurred!")
-        plt.xlabel("Time (s)")
+        #plt.plot(self.t, sig)
+        plt.plot(sig)
+        plt.title("Clipped Waveform")
+        #plt.xlabel("Time (s)")
+        plt.xlabel("Samples")
         plt.ylabel("Amplitude")
         plt.axhline(y=1, color='red', linestyle='--')
         plt.axhline(y=-1, color='red', linestyle='--')

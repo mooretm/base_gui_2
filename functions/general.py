@@ -22,3 +22,17 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
+
+
+def truncate_path(long_path):
+    """ Truncate path (if necessary) and return 
+        shortened path for display
+    """
+    if len(long_path) > 60:
+        short = '...' + long_path[-60:]
+        return short
+    else:
+        if long_path == "":
+            return 'Please select a .wav file'
+        else:
+            return long_path

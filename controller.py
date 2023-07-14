@@ -26,7 +26,7 @@ import markdown
 # Menu imports
 from menus import mainmenu
 # Function imports
-from functions import resource_path
+from functions import general
 # Model imports
 from models import sessionmodel
 from models import audiomodel
@@ -54,7 +54,7 @@ class Application(tk.Tk):
         #############
         self.NAME = 'Base GUI 2.0'
         self.VERSION = '0.0.0'
-        self.EDITED = 'May 2, 2023'
+        self.EDITED = 'July 14, 2023'
 
         # Create menu settings dictionary
         self._menu_settings = {
@@ -80,7 +80,7 @@ class Application(tk.Tk):
 
         # Load current session parameters from file
         # Or load defaults if file does not exist yet
-        self.sessionpars_model = sessionmodel.SessionParsModel()
+        self.sessionpars_model = sessionmodel.SessionParsModel(self._menu_settings)
         self._load_sessionpars()
 
         # Load CSV writer model
@@ -118,7 +118,7 @@ class Application(tk.Tk):
             # Calibration dialog commands
             '<<CalPlay>>': lambda _: self.play_calibration_file(),
             '<<CalStop>>': lambda _: self.stop_calibration_file(),
-            '<<CalibrationSubmit>>': lambda _: self._calc_level(),
+            '<<CalibrationSubmit>>': lambda _: self._calc_offset(),
 
             # Audio dialog commands
             '<<AudioDialogSubmit>>': lambda _: self._save_sessionpars(),
@@ -135,10 +135,11 @@ class Application(tk.Tk):
         self.center_window()
 
         # Check for updates
-        _filepath = r'\\starfile\Public\Temp\MooreT\Custom Software\version_library.csv'
-        u = updatermodel.VersionChecker(_filepath, self.NAME, self.VERSION)
-        if not u.current:
-            self.destroy()
+        if self.sessionpars['check_for_updates'].get() == 'yes':
+            _filepath = self.sessionpars['version_lib_path'].get()
+            u = updatermodel.VersionChecker(_filepath, self.NAME, self.VERSION)
+            if not u.current:
+                self.destroy()
 
 
     #####################
@@ -163,6 +164,23 @@ class Application(tk.Tk):
         """
         # Quit app
         self.destroy()
+
+
+    def _play(self):
+        try:
+            self.a.play(
+                level=self.sessionpars['scaling_factor'].get(),
+                device_id=self.sessionpars['audio_device'].get(),
+                speaker=self.sessionpars['speaker_number'].get()
+            )
+        except AttributeError:
+            messagebox.showerror(
+                title="No Audio File",
+                message="Cannot play audio!",
+                detail="You must provide a valid audio path to play audio." +
+                    "\nAborting!"
+            )
+            self.destroy()
 
 
     ########################
@@ -242,7 +260,7 @@ class Application(tk.Tk):
         """ Load calibration file and present
         """
         # Get calibration file
-        self.calmodel._get_cal_file()
+        self.calmodel.get_cal_file()
 
         # Play calibration file
         self.calmodel.play_cal()
@@ -255,11 +273,22 @@ class Application(tk.Tk):
         self.calmodel.stop_cal()
 
 
-    def _calc_level(self):
+    def _calc_offset(self):
+        """ Calculate offset based on SLM reading.
+        """
         # Calculate new presentation level
-        self.calmodel._calc_level()
+        self.calmodel.calc_offset()
+        # Save level - this must be called here!
+        self._save_sessionpars()
 
-        # Save level
+
+    def _calc_level(self, desired_spl):
+        """ Calculate new dB FS level using slm_offset.
+        """
+        # Calculate new presentation level
+        self.calmodel.calc_level(desired_spl)
+
+        # Save level - this must be called here!
         self._save_sessionpars()
 
 
@@ -271,8 +300,7 @@ class Application(tk.Tk):
         """
         print("controller: Looking for help file in compiled " +
             "version temp location...")
-        help_file = resource_path.resource_path('README\\README.html')
-        #help_file = self.resource_path('README\\README.html')
+        help_file = general.resource_path('README\\README.html')
         file_exists = os.access(help_file, os.F_OK)
         if not file_exists:
             print('controller: Not found!\nChecking for help file in ' +

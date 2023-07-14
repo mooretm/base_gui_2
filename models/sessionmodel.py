@@ -6,10 +6,10 @@
 ############
 # Import system packages
 from pathlib import Path
+import os
 
 # Import data handling packages
 import json
-from glob import glob
 
 
 #########
@@ -18,39 +18,62 @@ from glob import glob
 class SessionParsModel:
     # Define dictionary items
     fields = {
+        # Session variables
         'subject': {'type': 'str', 'value': '999'},
         'condition': {'type': 'str', 'value': 'TEST'},
-        'pres_level': {'type': 'float', 'value': 65},
+        'pres_level': {'type': 'float', 'value': 65.0},
         'randomize': {'type': 'int', 'value': 0},
         'repetitions': {'type': 'int', 'value': 1},
-        #'Speaker Number': {'type': 'int', 'value': 1},
+
+        # Stimulus variables
         'audio_files_path': {'type': 'str', 'value': 'Please select a folder'},
         'matrix_file_path': {'type': 'str', 'value': 'Please select a file'},
+        
+        # Audio device variables
         'audio_device': {'type': 'int', 'value': 999},
-        'raw_lvl': {'type': 'float', 'value': -30},
-        'slm_reading': {'type': 'float', 'value': 70},
-        'adj_pres_level': {'type': 'float', 'value': -30},
-        'scaling_factor': {'type': 'float', 'value': -30},
-        'cal_file': {'type': 'str', 'value': 'cal_stim.wav'}
+        #'speaker_number': {'type': 'int', 'value': 1},
+
+        # Calibration variables
+        'cal_scaling_factor': {'type': 'float', 'value': -30.0},
+        'slm_reading': {'type': 'float', 'value': 70.0},
+        'slm_offset': {'type': 'float', 'value': 100.0},
+        'cal_file': {'type': 'str', 'value': 'cal_stim.wav'},
+
+        # Presentation level variables
+        'scaling_factor': {'type': 'float', 'value': -30.0},
+        'db_level': {'type': 'float', 'value': -30.0},
+
+        # Version control variables
+        'check_for_updates': {'type': 'str', 'value': 'yes'},
+        'version_lib_path': {'type': 'str', 'value': r'\\starfile\Public\Temp\MooreT\Custom Software\version_library.csv'},
     }
 
-    def __init__(self):
-        # Create session parameters file
-        filename = 'base_gui2.json'
 
-        # Store settings file in user's home directory
-        self.filepath = Path.home() / filename
+    def __init__(self, info):
+        # Create session parameters file name
+        filename = info['name'] + '.json'
 
-        # Load settings file
+        # Create a folder to store the session parameters file
+        # in user's home directory
+        directory = Path.home() / info['name']
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        # Path to file
+        self.filepath = directory / filename
+
+        # Attempt to load session parameters file
         self.load()
 
 
     def load(self):
-        """ Load session parameters from file
+        """ Attempt to load session parameters from file
         """
         # If the file doesn't exist, abort
         print("\nsessionmodel: Checking for parameter file...")
         if not self.filepath.exists():
+            print("sessionmodel: No session parameters file found; " +
+                  "using default values")
             return
 
         # Open the file and read in the raw values

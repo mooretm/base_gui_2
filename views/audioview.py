@@ -1,4 +1,4 @@
-""" Audio dialog
+""" Audio device selection view
 """
 
 ###########
@@ -7,11 +7,6 @@
 # Import GUI packages
 import tkinter as tk
 from tkinter import ttk
-
-# Import data science packages
-import numpy as np
-import pandas as pd
-from pandastable import Table
 
 # Import audio packages
 import sounddevice as sd
@@ -31,14 +26,11 @@ class AudioDialog(tk.Toplevel):
         # Window setup
         self.withdraw()
         self.focus()
-        self.title("Audio")
+        self.title("Audio Device Selection")
         self.grab_set() # Disable root window (toplevel as modal window)
 
         # Draw widgets
         self._draw_widgets()
-
-        # Show device table
-        self._show_audio_devices()
 
         # Center calibration window dialog
         self.center_window()
@@ -52,36 +44,74 @@ class AudioDialog(tk.Toplevel):
         options = {'padx':10, 'pady':10}
         options_small = {'padx':2.5, 'pady':2.5}
 
-        # Audio device
-        lfrm_settings = ttk.Labelframe(self, text='Audio Device')
-        lfrm_settings.grid(column=0, row=0, sticky='nsew', **options)
-
         # Audio device table
-        self.frmTable = ttk.Frame(self)
-        self.frmTable.grid(column=0, row=15, **options)
+        self.frm_tree = ttk.Frame(self)
+        self.frm_tree.grid(column=5, row=5, **options)
 
+        # Submit button
+        frm_submit = ttk.Frame(self)
+        frm_submit.grid(column=5, row=10, **options)
 
         ###########
         # Widgets #
         ###########
-        # Audio device ID
-        ttk.Label(lfrm_settings, text="Audio Device ID:").grid(
-            column= 5, row=10, sticky='e', **options_small)
-        ent_deviceID = ttk.Entry(lfrm_settings, 
-            textvariable=self.sessionpars['audio_device'], width=6)
-        ent_deviceID.grid(column=10, row=10, sticky='w', **options_small)
+        # Create treeview
+        self.tree = self._create_tree_widget()
 
         # Submit button
-        btnDeviceID = ttk.Button(self, text="Submit", 
-            command=self._on_submit)
-        btnDeviceID.grid(column=0, columnspan=10, row=10, **options_small)
+        ttk.Button(frm_submit, text="Submit", command=self._on_submit).grid(
+            column=5, columnspan=15, row=5)
+        
 
-        # Speaker number
-        # lbl_speaker = ttk.Label(lfrm_settings, text='Output Speaker:').grid(
-        #     column=5, row=5, sticky='e', **options_small)
-        # ent_speaker = ttk.Entry(lfrm_settings, 
-        #     textvariable=self.sessionpars['Speaker Number'], width=6)
-        # ent_speaker.grid(column=10, row=5, sticky='w', **options_small)
+    def _create_tree_widget(self):
+        """ Create and populate treeview.
+        """
+        columns = ('device_id', 'device_name', 'channels_out')
+        tree = ttk.Treeview(self.frm_tree, columns=columns, show='headings')
+
+        # Define headings
+        tree.heading('device_id', text='Device ID')
+        tree.heading('device_name', text='Device Name')
+        tree.heading('channels_out', text='Outputs')
+
+        # Define columns
+        tree.column('device_id', width=60, anchor=tk.CENTER)
+        tree.column('device_name', width=400, anchor=tk.W)
+        tree.column('channels_out', width=60, anchor=tk.CENTER)
+
+        tree.bind('<<TreeviewSelect>>', self._item_selected)
+        tree.grid(row=0, column=0, sticky=tk.NSEW)
+
+        # Add a scrollbar
+        scrollbar = ttk.Scrollbar(self.frm_tree, orient=tk.VERTICAL, command=tree.yview)
+        tree.configure(yscroll=scrollbar.set)
+        scrollbar.grid(row=0, column=1, sticky='ns')
+
+        # Get data
+        devices = self._query_audio_devices()
+
+        # Populate tree
+        for device in devices:
+            tree.insert('', tk.END, values=device)
+
+        return tree
+
+
+    def _query_audio_devices(self):
+        """ Create list of tuples with specified device information.
+        """
+        # Get list of audio devices
+        deviceList = sd.query_devices()
+        print("\naudioview: Audio Devcie List")
+        print(deviceList)
+        
+        # Create list of tuples with device info
+        devices = []
+        for ii in range(0,len(deviceList)):
+            if deviceList[ii]['max_output_channels'] > 0:
+                devices.append((ii, deviceList[ii]['name'], deviceList[ii]['max_output_channels']))
+
+        return devices
 
 
     #################
@@ -100,26 +130,21 @@ class AudioDialog(tk.Toplevel):
         self.deiconify()
 
 
-    def _show_audio_devices(self):
-        # Get and display list of audio devices
-        deviceList = sd.query_devices()
-        print("\naudioview: Audio Devcie List")
-        print(deviceList)
-        
-        names = [deviceList[x]['name'] for x in np.arange(0,len(deviceList))]
-        chans_out =  [deviceList[x]['max_output_channels'] for x in np.arange(0,len(deviceList))]
-        ids = np.arange(0,len(deviceList))
-        df = pd.DataFrame({
-            "device_id": ids, 
-            "name": names, 
-            "chans_out": chans_out})
-        pt = Table(self.frmTable, dataframe=df, showtoolbar=True, showstatusbar=True)
-        table = pt = Table(self.frmTable, dataframe=df)
-        table.grid(column=0, row=0)
-        pt.show()
-    
+    def _item_selected(self, event):
+        """ Update audio device ID with the device selected
+            from the tree.
+        """
+        for selected_item in self.tree.selection():
+            item = self.tree.item(selected_item)
+            record = item['values']
+
+            # Update sessionpars with device id
+            self.sessionpars['audio_device'].set(record[0])
+
 
     def _on_submit(self):
-        print("\nView_Audio_99: Sending save audio config event...")
+        """ Send submit event to controller.
+        """
+        print("\naudioview: Sending save audio device event...")
         self.parent.event_generate('<<AudioDialogSubmit>>')
         self.destroy()
